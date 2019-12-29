@@ -28,8 +28,8 @@ var (
 	DefaultMaxSendMsgSize = 1024 * 1024 * 4
 )
 
-type poolMaxStreams struct {}
-type poolMaxIdle struct {}
+type poolMaxStreams struct{}
+type poolMaxIdle struct{}
 type codecsKey struct{}
 type tlsAuth struct{}
 type maxRecvMsgSizeKey struct{}
