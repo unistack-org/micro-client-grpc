@@ -1,19 +1,24 @@
 package grpc
 
 import (
-	"github.com/micro/go-micro/v3/errors"
+	pberr "github.com/unistack-org/micro-server-grpc/errors"
+	"github.com/unistack-org/micro/v3/errors"
 	"google.golang.org/grpc/status"
 )
 
 func microError(err error) error {
 	// no error
-	switch err {
-	case nil:
+
+	if err == nil {
 		return nil
 	}
 
 	if verr, ok := err.(*errors.Error); ok {
 		return verr
+	}
+
+	if verr, ok := err.(*pberr.Error); ok {
+		return &errors.Error{Id: verr.Id, Code: verr.Code, Detail: verr.Detail, Status: verr.Status}
 	}
 
 	// grpc error

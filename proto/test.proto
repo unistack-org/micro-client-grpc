@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package helloworld;
+
+service Test {
+	rpc CallNative(Request) returns (Response) {};
+	rpc CallMicro(Request) returns (Response) {};
+	rpc Stream(stream Request) returns (stream Response) {};
+}
+
+message Request {
+  string uuid = 1;
+	string name = 2;
+}
+
+message Response {
+	string msg = 1;
+}

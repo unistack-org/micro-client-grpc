@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	pb "github.com/unistack-org/micro-client-grpc/proto"
 	"google.golang.org/grpc"
 	pgrpc "google.golang.org/grpc"
-	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 )
 
 func testPool(t *testing.T, size int, ttl time.Duration, idle int, ms int) {
@@ -19,8 +19,9 @@ func testPool(t *testing.T, size int, ttl time.Duration, idle int, ms int) {
 	}
 	defer l.Close()
 
+	ctx := context.Background()
 	s := pgrpc.NewServer()
-	pb.RegisterGreeterServer(s, &greeterServer{})
+	pb.RegisterTestServer(s, &testServer{})
 
 	go s.Serve(l)
 	defer s.Stop()
@@ -30,20 +31,20 @@ func testPool(t *testing.T, size int, ttl time.Duration, idle int, ms int) {
 
 	for i := 0; i < 10; i++ {
 		// get a conn
-		cc, err := p.getConn(l.Addr().String(), grpc.WithInsecure())
+		cc, err := p.getConn(ctx, l.Addr().String(), grpc.WithInsecure())
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		rsp := pb.HelloReply{}
+		rsp := pb.Response{}
 
-		err = cc.Invoke(context.TODO(), "/helloworld.Greeter/SayHello", &pb.HelloRequest{Name: "John"}, &rsp)
+		err = cc.Invoke(context.TODO(), "/helloworld.Test/CallNative", &pb.Request{Name: "John"}, &rsp)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if rsp.Message != "Hello John" {
-			t.Fatalf("Got unexpected response %v", rsp.Message)
+		if rsp.Msg != "Hello John" {
+			t.Fatalf("Got unexpected response %v", rsp.Msg)
 		}
 
 		// release the conn
