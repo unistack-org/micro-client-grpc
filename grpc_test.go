@@ -177,7 +177,13 @@ func TestGRPCClient(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		fmt.Printf("recv from stream\n")
 		if err = stream.Recv(rsp); err != nil {
-			t.Fatal(err)
+			st, ok := status.FromError(err)
+			if !ok {
+				t.Fatalf("%v", err)
+			}
+			if st.Code() != codes.DeadlineExceeded {
+				t.Fatalf("%v", err)
+			}
 		}
 		if rsp.Msg != "test name" {
 			t.Fatalf("invalid msg: %v", rsp)
