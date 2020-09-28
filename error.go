@@ -1,7 +1,7 @@
 package grpc
 
 import (
-	pberr "github.com/unistack-org/micro-client-grpc/errors"
+	pb "github.com/unistack-org/micro-client-grpc/internal/errors"
 	"github.com/unistack-org/micro/v3/errors"
 	"google.golang.org/grpc/status"
 )
@@ -17,7 +17,7 @@ func microError(err error) error {
 		return verr
 	}
 
-	if verr, ok := err.(*pberr.Error); ok {
+	if verr, ok := err.(*pb.Error); ok {
 		return &errors.Error{Id: verr.Id, Code: verr.Code, Detail: verr.Detail, Status: verr.Status}
 	}
 
