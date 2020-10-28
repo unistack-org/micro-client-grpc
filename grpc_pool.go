@@ -185,7 +185,6 @@ func (p *pool) release(addr string, conn *poolConn, err error) {
 		sp.idle++
 	}
 	p.Unlock()
-	return
 }
 
 func (conn *poolConn) Close() {
@@ -203,7 +202,6 @@ func removeConn(conn *poolConn) {
 	conn.next = nil
 	conn.in = false
 	conn.sp.count--
-	return
 }
 
 func addConnAfter(conn *poolConn, after *poolConn) {
@@ -215,5 +213,4 @@ func addConnAfter(conn *poolConn, after *poolConn) {
 	after.next = conn
 	conn.in = true
 	conn.sp.count++
-	return
 }
