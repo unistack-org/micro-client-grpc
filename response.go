@@ -3,8 +3,9 @@ package grpc
 import (
 	"strings"
 
+	bytes "github.com/unistack-org/micro-codec-bytes"
 	"github.com/unistack-org/micro/v3/codec"
-	"github.com/unistack-org/micro-codec-bytes"
+	"github.com/unistack-org/micro/v3/metadata"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/encoding"
 )
@@ -22,16 +23,16 @@ func (r *response) Codec() codec.Reader {
 }
 
 // read the header
-func (r *response) Header() map[string]string {
-	md, err := r.stream.Header()
+func (r *response) Header() metadata.Metadata {
+	meta, err := r.stream.Header()
 	if err != nil {
-		return map[string]string{}
+		return metadata.New(0)
 	}
-	hdr := make(map[string]string, len(md))
-	for k, v := range md {
-		hdr[k] = strings.Join(v, ",")
+	md := metadata.New(len(meta))
+	for k, v := range meta {
+		md.Set(k, strings.Join(v, ","))
 	}
-	return hdr
+	return md
 }
 
 // Read the undecoded response

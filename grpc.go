@@ -626,7 +626,7 @@ func (g *grpcClient) Publish(ctx context.Context, p client.Message, opts ...clie
 
 	md, ok := metadata.FromContext(ctx)
 	if !ok {
-		md = make(map[string]string)
+		md = metadata.New(0)
 	}
 	md["Content-Type"] = p.ContentType()
 	md["Micro-Topic"] = p.Topic()
