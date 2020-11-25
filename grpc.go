@@ -548,7 +548,7 @@ func (g *grpcClient) Stream(ctx context.Context, req client.Request, opts ...cli
 
 		// make the call
 		stream := &grpcStream{}
-		err = g.stream(ctx, node, req, stream, callOpts)
+		err = gstream(ctx, node, req, stream, callOpts)
 
 		// record the result of the call to inform future routing decisions
 		if verr := g.opts.Selector.Record(node, err); verr != nil {
