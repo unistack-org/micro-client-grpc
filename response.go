@@ -3,23 +3,20 @@ package grpc
 import (
 	"strings"
 
-	bytes "github.com/unistack-org/micro-codec-bytes"
 	"github.com/unistack-org/micro/v3/codec"
 	"github.com/unistack-org/micro/v3/metadata"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/encoding"
 )
 
 type response struct {
 	conn   *poolConn
 	stream grpc.ClientStream
-	codec  encoding.Codec
-	gcodec codec.Codec
+	codec  codec.Codec
 }
 
 // Read the response
-func (r *response) Codec() codec.Reader {
-	return r.gcodec
+func (r *response) Codec() codec.Codec {
+	return r.codec
 }
 
 // read the header
@@ -37,8 +34,8 @@ func (r *response) Header() metadata.Metadata {
 
 // Read the undecoded response
 func (r *response) Read() ([]byte, error) {
-	f := &bytes.Frame{}
-	if err := r.gcodec.ReadBody(f); err != nil {
+	f := &codec.Frame{}
+	if err := r.codec.ReadBody(&wrapStream{r.stream}, f); err != nil {
 		return nil, err
 	}
 	return f.Data, nil

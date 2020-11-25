@@ -74,7 +74,7 @@ func (g *grpcRequest) Endpoint() string {
 	return g.method
 }
 
-func (g *grpcRequest) Codec() codec.Writer {
+func (g *grpcRequest) Codec() codec.Codec {
 	return g.codec
 }
 
