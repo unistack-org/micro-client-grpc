@@ -69,7 +69,7 @@ type grpcCodec struct {
 
 */
 
-func (g *wrapGrpcCodec) ReadHeader(conn io.ReadWriter, m *codec.Message, mt codec.MessageType) error {
+func (g *wrapGrpcCodec) ReadHeader(conn io.Reader, m *codec.Message, mt codec.MessageType) error {
 	/*
 		if m == nil {
 			m = codec.NewMessage(codec.Request)
@@ -92,7 +92,7 @@ func (g *wrapGrpcCodec) ReadHeader(conn io.ReadWriter, m *codec.Message, mt code
 	return nil
 }
 
-func (g *wrapGrpcCodec) ReadBody(conn io.ReadWriter, v interface{}) error {
+func (g *wrapGrpcCodec) ReadBody(conn io.Reader, v interface{}) error {
 	// caller has requested a frame
 	switch m := v.(type) {
 	case *codec.Frame:
@@ -102,7 +102,7 @@ func (g *wrapGrpcCodec) ReadBody(conn io.ReadWriter, v interface{}) error {
 	return codec.ErrInvalidMessage
 }
 
-func (g *wrapGrpcCodec) Write(conn io.ReadWriter, m *codec.Message, v interface{}) error {
+func (g *wrapGrpcCodec) Write(conn io.Writer, m *codec.Message, v interface{}) error {
 	// if we don't have a body
 	if v != nil {
 		b, err := g.Marshal(v)
