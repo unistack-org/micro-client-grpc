@@ -652,6 +652,10 @@ func (g *grpcClient) String() string {
 	return "grpc"
 }
 
+func (g *grpcClient) Name() string {
+	return g.opts.Name
+}
+
 func (g *grpcClient) getGrpcDialOptions() []grpc.DialOption {
 	if g.opts.CallOptions.Context == nil {
 		return nil
@@ -692,7 +696,7 @@ func (g *grpcClient) getGrpcCallOptions() []grpc.CallOption {
 	return opts
 }
 
-func newClient(opts ...client.Option) client.Client {
+func NewClient(opts ...client.Option) client.Client {
 	options := client.NewOptions(opts...)
 	// default content type for grpc
 	options.ContentType = "application/grpc+proto"
@@ -723,8 +727,4 @@ func newClient(opts ...client.Option) client.Client {
 	}
 
 	return c
-}
-
-func NewClient(opts ...client.Option) client.Client {
-	return newClient(opts...)
 }
