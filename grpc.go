@@ -68,7 +68,7 @@ func (g *grpcClient) secure(addr string) grpc.DialOption {
 func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, rsp interface{}, opts client.CallOptions) error {
 	var header map[string]string
 
-	if md, ok := metadata.FromContext(ctx); ok {
+	if md, ok := metadata.FromOutgoingContext(ctx); ok {
 		header = make(map[string]string, len(md))
 		for k, v := range md {
 			header[strings.ToLower(k)] = v
@@ -151,7 +151,7 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 func (g *grpcClient) stream(ctx context.Context, addr string, req client.Request, rsp interface{}, opts client.CallOptions) error {
 	var header map[string]string
 
-	if md, ok := metadata.FromContext(ctx); ok {
+	if md, ok := metadata.FromOutgoingContext(ctx); ok {
 		header = make(map[string]string, len(md))
 		for k, v := range md {
 			header[k] = v
@@ -611,9 +611,9 @@ func (g *grpcClient) Publish(ctx context.Context, p client.Message, opts ...clie
 
 	options := client.NewPublishOptions(opts...)
 
-	md, ok := metadata.FromContext(ctx)
+	md, ok := metadata.FromOutgoingContext(ctx)
 	if !ok {
-		md = metadata.New(0)
+		md = metadata.New(2)
 	}
 	md["Content-Type"] = p.ContentType()
 	md["Micro-Topic"] = p.Topic()
@@ -642,7 +642,7 @@ func (g *grpcClient) Publish(ctx context.Context, p client.Message, opts ...clie
 		topic = options.Exchange
 	}
 
-	return g.opts.Broker.Publish(ctx, topic, &broker.Message{
+	return g.opts.Broker.Publish(metadata.NewOutgoingContext(ctx, md), topic, &broker.Message{
 		Header: md,
 		Body:   body,
 	}, broker.PublishContext(options.Context))
