@@ -28,6 +28,7 @@ type grpcClient struct {
 	codecs map[string]encoding.Codec
 	pool   *pool
 	once   atomic.Value
+	init   bool
 	sync.RWMutex
 }
 
@@ -315,6 +316,9 @@ func (g *grpcClient) newGRPCCodec(ct string) (codec.Codec, error) {
 }
 
 func (g *grpcClient) Init(opts ...client.Option) error {
+	if len(opts) == 0 && g.init {
+		return nil
+	}
 	size := g.opts.PoolSize
 	ttl := g.opts.PoolTTL
 
@@ -329,6 +333,27 @@ func (g *grpcClient) Init(opts ...client.Option) error {
 		g.pool.ttl = int64(g.opts.PoolTTL.Seconds())
 		g.pool.Unlock()
 	}
+
+	if err := g.opts.Broker.Init(); err != nil {
+		return err
+	}
+	if err := g.opts.Tracer.Init(); err != nil {
+		return err
+	}
+	if err := g.opts.Router.Init(); err != nil {
+		return err
+	}
+	if err := g.opts.Logger.Init(); err != nil {
+		return err
+	}
+	if err := g.opts.Meter.Init(); err != nil {
+		return err
+	}
+	if err := g.opts.Transport.Init(); err != nil {
+		return err
+	}
+
+	g.init = true
 
 	return nil
 }
