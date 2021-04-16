@@ -86,7 +86,7 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 	md := gmetadata.New(header)
 	ctx = gmetadata.NewOutgoingContext(ctx, md)
 
-	cf, err := g.newGRPCCodec(req.ContentType())
+	cf, err := g.newCodec(req.ContentType())
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
@@ -171,7 +171,7 @@ func (g *grpcClient) stream(ctx context.Context, addr string, req client.Request
 	md := gmetadata.New(header)
 	ctx = gmetadata.NewOutgoingContext(ctx, md)
 
-	cf, err := g.newGRPCCodec(req.ContentType())
+	cf, err := g.newCodec(req.ContentType())
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
@@ -305,9 +305,13 @@ func (g *grpcClient) maxSendMsgSizeValue() int {
 	return v.(int)
 }
 
-func (g *grpcClient) newGRPCCodec(ct string) (codec.Codec, error) {
+func (g *grpcClient) newCodec(ct string) (codec.Codec, error) {
 	g.RLock()
 	defer g.RUnlock()
+
+	if idx := strings.IndexRune(ct, ';'); idx >= 0 {
+		ct = ct[:idx]
+	}
 
 	if c, ok := g.opts.Codecs[ct]; ok {
 		return c, nil
@@ -648,7 +652,7 @@ func (g *grpcClient) Publish(ctx context.Context, p client.Message, opts ...clie
 		body = d.Data
 	} else {
 		// use codec for payload
-		cf, err := g.newGRPCCodec(p.ContentType())
+		cf, err := g.newCodec(p.ContentType())
 		if err != nil {
 			return errors.InternalServerError("go.micro.client", err.Error())
 		}
