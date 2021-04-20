@@ -35,13 +35,10 @@ type grpcClient struct {
 // secure returns the dial option for whether its a secure or insecure connection
 func (g *grpcClient) secure(addr string) grpc.DialOption {
 	// first we check if theres'a  tls config
-	if g.opts.Context != nil {
-		if v := g.opts.Context.Value(tlsAuth{}); v != nil {
-			tls := v.(*tls.Config)
-			creds := credentials.NewTLS(tls)
-			// return tls config if it exists
-			return grpc.WithTransportCredentials(creds)
-		}
+	if g.opts.TLSConfig != nil {
+		creds := credentials.NewTLS(g.opts.TLSConfig)
+		// return tls config if it exists
+		return grpc.WithTransportCredentials(creds)
 	}
 
 	// default config
