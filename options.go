@@ -28,13 +28,6 @@ var (
 )
 
 type poolMaxStreams struct{}
-type poolMaxIdle struct{}
-type codecsKey struct{}
-type tlsAuth struct{}
-type maxRecvMsgSizeKey struct{}
-type maxSendMsgSizeKey struct{}
-type grpcDialOptions struct{}
-type grpcCallOptions struct{}
 
 // maximum streams on a connectioin
 func PoolMaxStreams(n int) client.Option {
@@ -46,6 +39,8 @@ func PoolMaxStreams(n int) client.Option {
 	}
 }
 
+type poolMaxIdle struct{}
+
 // maximum idle conns of a pool
 func PoolMaxIdle(d int) client.Option {
 	return func(o *client.Options) {
@@ -55,6 +50,8 @@ func PoolMaxIdle(d int) client.Option {
 		o.Context = context.WithValue(o.Context, poolMaxIdle{}, d)
 	}
 }
+
+type codecsKey struct{}
 
 // gRPC Codec to be used to encode/decode requests for a given content type
 func Codec(contentType string, c encoding.Codec) client.Option {
@@ -71,6 +68,8 @@ func Codec(contentType string, c encoding.Codec) client.Option {
 	}
 }
 
+type maxRecvMsgSizeKey struct{}
+
 //
 // MaxRecvMsgSize set the maximum size of message that client can receive.
 //
@@ -82,6 +81,8 @@ func MaxRecvMsgSize(s int) client.Option {
 		o.Context = context.WithValue(o.Context, maxRecvMsgSizeKey{}, s)
 	}
 }
+
+type maxSendMsgSizeKey struct{}
 
 //
 // MaxSendMsgSize set the maximum size of message that client can send.
@@ -95,6 +96,8 @@ func MaxSendMsgSize(s int) client.Option {
 	}
 }
 
+type grpcDialOptions struct{}
+
 //
 // DialOptions to be used to configure gRPC dial options
 //
@@ -106,6 +109,8 @@ func DialOptions(opts ...grpc.DialOption) client.CallOption {
 		o.Context = context.WithValue(o.Context, grpcDialOptions{}, opts)
 	}
 }
+
+type grpcCallOptions struct{}
 
 //
 // CallOptions to be used to configure gRPC call options

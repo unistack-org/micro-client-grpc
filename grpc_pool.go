@@ -10,16 +10,12 @@ import (
 )
 
 type pool struct {
-	size int
-	ttl  int64
-
-	//  max streams on a *poolConn
+	conns      map[string]*streamsPool
+	size       int
+	ttl        int64
 	maxStreams int
-	//  max idle conns
-	maxIdle int
-
+	maxIdle    int
 	sync.Mutex
-	conns map[string]*streamsPool
 }
 
 type streamsPool struct {
@@ -34,21 +30,16 @@ type streamsPool struct {
 }
 
 type poolConn struct {
-	//  grpc conn
+	err error
 	*grpc.ClientConn
-	err  error
-	addr string
-
-	//  pool and streams pool
+	next    *poolConn
 	pool    *pool
 	sp      *streamsPool
+	pre     *poolConn
+	addr    string
 	streams int
 	created int64
-
-	//  list
-	pre  *poolConn
-	next *poolConn
-	in   bool
+	in      bool
 }
 
 func newPool(size int, ttl time.Duration, idle int, ms int) *pool {
@@ -140,7 +131,7 @@ func (p *pool) getConn(ctx context.Context, addr string, opts ...grpc.DialOption
 	if err != nil {
 		return nil, err
 	}
-	conn = &poolConn{cc, nil, addr, p, sp, 1, time.Now().Unix(), nil, nil, false}
+	conn = &poolConn{ClientConn: cc, err: nil, addr: addr, pool: p, sp: sp, streams: 1, created: time.Now().Unix(), pre: nil, next: nil, in: false}
 
 	//  add conn to streams pool
 	p.Lock()
@@ -152,7 +143,7 @@ func (p *pool) getConn(ctx context.Context, addr string, opts ...grpc.DialOption
 	return conn, nil
 }
 
-func (p *pool) release(addr string, conn *poolConn, err error) {
+func (p *pool) release(conn *poolConn, err error) {
 	p.Lock()
 	p, sp, created := conn.pool, conn.sp, conn.created
 	//  try to add conn
@@ -188,7 +179,7 @@ func (p *pool) release(addr string, conn *poolConn, err error) {
 }
 
 func (conn *poolConn) Close() {
-	conn.pool.release(conn.addr, conn, conn.err)
+	conn.pool.release(conn, conn.err)
 }
 
 func removeConn(conn *poolConn) {
