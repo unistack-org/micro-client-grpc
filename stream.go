@@ -11,17 +11,15 @@ import (
 
 // Implements the streamer interface
 type grpcStream struct {
-	// embed so we can access if need be
 	grpc.ClientStream
-
-	sync.RWMutex
-	closed   bool
+	context  context.Context
 	err      error
-	conn     *poolConn
 	request  client.Request
 	response client.Response
-	context  context.Context
 	close    func(err error)
+	conn     *poolConn
+	sync.RWMutex
+	closed bool
 }
 
 func (g *grpcStream) Context() context.Context {

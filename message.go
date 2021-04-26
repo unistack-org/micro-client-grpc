@@ -5,9 +5,9 @@ import (
 )
 
 type grpcEvent struct {
+	payload     interface{}
 	topic       string
 	contentType string
-	payload     interface{}
 }
 
 func newGRPCEvent(topic string, payload interface{}, contentType string, opts ...client.MessageOption) client.Message {

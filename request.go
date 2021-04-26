@@ -9,12 +9,12 @@ import (
 )
 
 type grpcRequest struct {
+	request     interface{}
+	codec       codec.Codec
 	service     string
 	method      string
 	contentType string
-	request     interface{}
 	opts        client.RequestOptions
-	codec       codec.Codec
 }
 
 // service Struct.Method /service.Struct/Method
