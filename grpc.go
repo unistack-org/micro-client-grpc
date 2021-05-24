@@ -22,6 +22,10 @@ import (
 	gmetadata "google.golang.org/grpc/metadata"
 )
 
+const (
+	defaultContentType = "application/grpc+proto"
+)
+
 type grpcClient struct {
 	opts client.Options
 	pool *pool
@@ -723,7 +727,7 @@ func (g *grpcClient) getGrpcCallOptions() []grpc.CallOption {
 func NewClient(opts ...client.Option) client.Client {
 	options := client.NewOptions(opts...)
 	// default content type for grpc
-	options.ContentType = "application/grpc+proto"
+	options.ContentType = defaultContentType
 
 	rc := &grpcClient{
 		opts: options,
