@@ -79,7 +79,7 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 	// set timeout in nanoseconds
 	header["timeout"] = fmt.Sprintf("%d", opts.RequestTimeout)
 	// set the content type for the request
-	header["x-content-type"] = req.ContentType()
+	//header["x-content-type"] = req.ContentType()
 
 	md := gmetadata.New(header)
 	ctx = gmetadata.NewOutgoingContext(ctx, md)
@@ -650,8 +650,8 @@ func (g *grpcClient) Publish(ctx context.Context, p client.Message, opts ...clie
 	if !ok {
 		md = metadata.New(2)
 	}
-	md["Content-Type"] = p.ContentType()
-	md["Micro-Topic"] = p.Topic()
+	md[metadata.HeaderContentType] = p.ContentType()
+	md[metadata.HeaderTopic] = p.Topic()
 
 	// passed in raw data
 	if d, ok := p.Payload().(*codec.Frame); ok {
