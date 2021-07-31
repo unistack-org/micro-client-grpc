@@ -19,7 +19,7 @@ func (w *wrapStream) Write(d []byte) (int, error) {
 func (w *wrapStream) Read(d []byte) (int, error) {
 	m := &codec.Frame{}
 	err := w.ClientStream.RecvMsg(m)
-	d = m.Data
+	copy(d, m.Data)
 	return len(d), err
 }
 

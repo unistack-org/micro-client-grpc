@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -27,10 +28,10 @@ const (
 )
 
 type grpcClient struct {
-	opts client.Options
 	pool *pool
-	init bool
+	opts client.Options
 	sync.RWMutex
+	init bool
 }
 
 // secure returns the dial option for whether its a secure or insecure connection
@@ -78,8 +79,6 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 
 	// set timeout in nanoseconds
 	header["timeout"] = fmt.Sprintf("%d", opts.RequestTimeout)
-	// set the content type for the request
-	//header["x-content-type"] = req.ContentType()
 
 	md := gmetadata.New(header)
 	ctx = gmetadata.NewOutgoingContext(ctx, md)
@@ -641,46 +640,64 @@ func (g *grpcClient) Stream(ctx context.Context, req client.Request, opts ...cli
 	return nil, grr
 }
 
+func (g *grpcClient) BatchPublish(ctx context.Context, ps []client.Message, opts ...client.PublishOption) error {
+	return g.publish(ctx, ps, opts...)
+}
+
 func (g *grpcClient) Publish(ctx context.Context, p client.Message, opts ...client.PublishOption) error {
+	return g.publish(ctx, []client.Message{p}, opts...)
+}
+
+func (g *grpcClient) publish(ctx context.Context, ps []client.Message, opts ...client.PublishOption) error {
 	var body []byte
 
 	options := client.NewPublishOptions(opts...)
 
-	md, ok := metadata.FromOutgoingContext(ctx)
+	// get proxy
+	exchange := ""
+	if v, ok := os.LookupEnv("MICRO_PROXY"); ok {
+		exchange = v
+	}
+
+	msgs := make([]*broker.Message, 0, len(ps))
+
+	omd, ok := metadata.FromOutgoingContext(ctx)
 	if !ok {
-		md = metadata.New(2)
+		omd = metadata.New(2)
 	}
-	md[metadata.HeaderContentType] = p.ContentType()
-	md[metadata.HeaderTopic] = p.Topic()
 
-	// passed in raw data
-	if d, ok := p.Payload().(*codec.Frame); ok {
-		body = d.Data
-	} else {
-		// use codec for payload
-		cf, err := g.newCodec(p.ContentType())
-		if err != nil {
-			return errors.InternalServerError("go.micro.client", err.Error())
+	for _, p := range ps {
+		md := metadata.Copy(omd)
+		md[metadata.HeaderContentType] = p.ContentType()
+		md[metadata.HeaderTopic] = p.Topic()
+
+		// passed in raw data
+		if d, ok := p.Payload().(*codec.Frame); ok {
+			body = d.Data
+		} else {
+			// use codec for payload
+			cf, err := g.newCodec(p.ContentType())
+			if err != nil {
+				return errors.InternalServerError("go.micro.client", err.Error())
+			}
+			// set the body
+			b, err := cf.Marshal(p.Payload())
+			if err != nil {
+				return errors.InternalServerError("go.micro.client", err.Error())
+			}
+			body = b
 		}
-		// set the body
-		b, err := cf.Marshal(p.Payload())
-		if err != nil {
-			return errors.InternalServerError("go.micro.client", err.Error())
+
+		topic := p.Topic()
+		if len(exchange) > 0 {
+			topic = exchange
 		}
-		body = b
+
+		md.Set(metadata.HeaderTopic, topic)
+		msgs = append(msgs, &broker.Message{Header: md, Body: body})
 	}
 
-	topic := p.Topic()
-
-	// get the exchange
-	if len(options.Exchange) > 0 {
-		topic = options.Exchange
-	}
-
-	return g.opts.Broker.Publish(metadata.NewOutgoingContext(ctx, md), topic, &broker.Message{
-		Header: md,
-		Body:   body,
-	},
+	return g.opts.Broker.BatchPublish(ctx, msgs,
 		broker.PublishContext(options.Context),
 		broker.PublishBodyOnly(options.BodyOnly),
 	)
