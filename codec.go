@@ -35,20 +35,10 @@ func (w *wrapMicroCodec) Name() string {
 }
 
 func (w *wrapMicroCodec) Marshal(v interface{}) ([]byte, error) {
-	if m, ok := v.(*codec.Frame); ok {
-		return m.Data, nil
-	}
 	return w.Codec.Marshal(v)
 }
 
 func (w *wrapMicroCodec) Unmarshal(d []byte, v interface{}) error {
-	if d == nil || v == nil {
-		return nil
-	}
-	if m, ok := v.(*codec.Frame); ok {
-		m.Data = d
-		return nil
-	}
 	return w.Codec.Unmarshal(d, v)
 }
 
