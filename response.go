@@ -3,8 +3,8 @@ package grpc
 import (
 	"strings"
 
-	"github.com/unistack-org/micro/v3/codec"
-	"github.com/unistack-org/micro/v3/metadata"
+	"go.unistack.org/micro/v3/codec"
+	"go.unistack.org/micro/v3/metadata"
 	"google.golang.org/grpc"
 )
 
