@@ -19,12 +19,13 @@ import (
 	"go.unistack.org/micro/v3/metadata"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/encoding"
 	gmetadata "google.golang.org/grpc/metadata"
 )
 
 const (
-	defaultContentType = "application/grpc+proto"
+	DefaultContentType = "application/grpc+proto"
 )
 
 type grpcClient struct {
@@ -62,7 +63,7 @@ func (g *grpcClient) secure(addr string) grpc.DialOption {
 	}
 
 	// other fallback to insecure
-	return grpc.WithInsecure()
+	return grpc.WithTransportCredentials(insecure.NewCredentials())
 }
 
 func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, rsp interface{}, opts client.CallOptions) error {
@@ -78,7 +79,8 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 	}
 
 	// set timeout in nanoseconds
-	header["timeout"] = fmt.Sprintf("%d", opts.RequestTimeout)
+	header["Grpc-Timeout"] = fmt.Sprintf("%dn", opts.RequestTimeout)
+	header["timeout"] = fmt.Sprintf("%dn", opts.RequestTimeout)
 
 	md := gmetadata.New(header)
 	ctx = gmetadata.NewOutgoingContext(ctx, md)
@@ -161,7 +163,8 @@ func (g *grpcClient) stream(ctx context.Context, addr string, req client.Request
 
 	// set timeout in nanoseconds
 	if opts.StreamTimeout > time.Duration(0) {
-		header["timeout"] = fmt.Sprintf("%d", opts.StreamTimeout)
+		header["Grpc-Timeout"] = fmt.Sprintf("%dn", opts.StreamTimeout)
+		header["timeout"] = fmt.Sprintf("%dn", opts.StreamTimeout)
 	}
 	// set the content type for the request
 	header["x-content-type"] = req.ContentType()
@@ -756,7 +759,7 @@ func (g *grpcClient) getGrpcCallOptions() []grpc.CallOption {
 func NewClient(opts ...client.Option) client.Client {
 	options := client.NewOptions(opts...)
 	// default content type for grpc
-	options.ContentType = defaultContentType
+	options.ContentType = DefaultContentType
 
 	rc := &grpcClient{
 		opts: options,

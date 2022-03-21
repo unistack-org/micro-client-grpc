@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -59,6 +60,9 @@ func newPool(size int, ttl time.Duration, idle int, ms int) *pool {
 }
 
 func (p *pool) getConn(ctx context.Context, addr string, opts ...grpc.DialOption) (*poolConn, error) {
+	if strings.HasPrefix(addr, "http") {
+		addr = addr[strings.Index(addr, ":")+3:]
+	}
 	now := time.Now().Unix()
 	p.Lock()
 	sp, ok := p.conns[addr]
@@ -126,7 +130,7 @@ func (p *pool) getConn(ctx context.Context, addr string, opts ...grpc.DialOption
 	}
 	p.Unlock()
 
-	//  create new conn
+	//  create new conn)
 	cc, err := grpc.DialContext(ctx, addr, opts...)
 	if err != nil {
 		return nil, err
