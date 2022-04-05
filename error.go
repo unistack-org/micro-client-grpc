@@ -6,8 +6,6 @@ import (
 )
 
 func microError(err error) error {
-	// no error
-
 	if err == nil {
 		return nil
 	}
@@ -25,6 +23,9 @@ func microError(err error) error {
 	details := s.Details()
 	switch len(details) {
 	case 0:
+		if e := errors.Parse(s.Message()); e.Code > 0 {
+			return e // actually a micro error
+		}
 		return err
 	case 1:
 		if verr, ok := details[0].(error); ok {

@@ -11,12 +11,12 @@ import (
 )
 
 type pool struct {
+	sync.Mutex
 	conns      map[string]*streamsPool
 	size       int
 	ttl        int64
 	maxStreams int
 	maxIdle    int
-	sync.Mutex
 }
 
 type streamsPool struct {
