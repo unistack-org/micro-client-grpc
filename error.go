@@ -22,23 +22,19 @@ func microError(err error) error {
 		return err
 	}
 
-	// return first error from details
-	if details := s.Details(); len(details) > 0 {
+	details := s.Details()
+	switch len(details) {
+	case 0:
+		return err
+	case 1:
 		if verr, ok := details[0].(error); ok {
 			return microError(verr)
 		}
-	}
-
-	// try to decode micro *errors.Error
-	if e := errors.Parse(s.Message()); e.Code > 0 {
-		return e // actually a micro error
-	}
-
-	// fallback
-	return &errors.Error{
-		ID:     "go.micro.client",
-		Code:   int32(s.Code()),
-		Detail: s.Message(),
-		Status: s.Code().String(),
+		return err
+	default:
+		if e := errors.Parse(s.Message()); e.Code > 0 {
+			return e // actually a micro error
+		}
+		return err
 	}
 }
