@@ -17,6 +17,7 @@ import (
 	"go.unistack.org/micro/v3/codec"
 	"go.unistack.org/micro/v3/errors"
 	"go.unistack.org/micro/v3/metadata"
+	"go.unistack.org/micro/v3/selector"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -438,20 +439,8 @@ func (g *grpcClient) Call(ctx context.Context, req client.Request, rsp interface
 		callOpts.Address = []string{g.opts.Proxy}
 	}
 
-	// lookup the route to send the reques to
-	// TODO apply any filtering here
-	routes, err := g.opts.Lookup(ctx, req, callOpts)
-	if err != nil {
-		return errors.InternalServerError("go.micro.client", err.Error())
-	}
+	var next selector.Next
 
-	// balance the list of nodes
-	next, err := callOpts.Selector.Select(routes)
-	if err != nil {
-		return err
-	}
-
-	// return errors.New("go.micro.client", "request timeout", 408)
 	call := func(i int) error {
 		// call backoff first. Someone may want an initial start delay
 		t, err := callOpts.Backoff(ctx, req, i)
@@ -462,6 +451,23 @@ func (g *grpcClient) Call(ctx context.Context, req client.Request, rsp interface
 		// only sleep if greater than 0
 		if t.Seconds() > 0 {
 			time.Sleep(t)
+		}
+
+		if next == nil {
+			var routes []string
+
+			// lookup the route to send the reques to
+			// TODO apply any filtering here
+			routes, err = g.opts.Lookup(ctx, req, callOpts)
+			if err != nil {
+				return errors.InternalServerError("go.micro.client", err.Error())
+			}
+
+			// balance the list of nodes
+			next, err = callOpts.Selector.Select(routes)
+			if err != nil {
+				return err
+			}
 		}
 
 		// get the next node
@@ -555,18 +561,7 @@ func (g *grpcClient) Stream(ctx context.Context, req client.Request, opts ...cli
 		callOpts.Address = []string{g.opts.Proxy}
 	}
 
-	// lookup the route to send the reques to
-	// TODO: move to internal lookup func
-	routes, err := g.opts.Lookup(ctx, req, callOpts)
-	if err != nil {
-		return nil, errors.InternalServerError("go.micro.client", err.Error())
-	}
-
-	// balance the list of nodes
-	next, err := callOpts.Selector.Select(routes)
-	if err != nil {
-		return nil, err
-	}
+	var next selector.Next
 
 	call := func(i int) (client.Stream, error) {
 		// call backoff first. Someone may want an initial start delay
@@ -578,6 +573,23 @@ func (g *grpcClient) Stream(ctx context.Context, req client.Request, opts ...cli
 		// only sleep if greater than 0
 		if t.Seconds() > 0 {
 			time.Sleep(t)
+		}
+
+		if next == nil {
+			var routes []string
+
+			// lookup the route to send the reques to
+			// TODO apply any filtering here
+			routes, err = g.opts.Lookup(ctx, req, callOpts)
+			if err != nil {
+				return nil, errors.InternalServerError("go.micro.client", err.Error())
+			}
+
+			// balance the list of nodes
+			next, err = callOpts.Selector.Select(routes)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// get the next node
