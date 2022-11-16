@@ -122,6 +122,14 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 		grpcDialOptions = append(grpcDialOptions, opts...)
 	}
 
+	contextDialer := g.opts.ContextDialer
+	if opts.ContextDialer != nil {
+		contextDialer = opts.ContextDialer
+	}
+	if contextDialer != nil {
+		grpcDialOptions = append(grpcDialOptions, grpc.WithContextDialer(contextDialer))
+	}
+
 	cc, err := g.pool.getConn(dialCtx, addr, grpcDialOptions...)
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", fmt.Sprintf("Error sending request: %v", err))
