@@ -38,15 +38,12 @@ func methodToGRPC(service, method string) string {
 	return fmt.Sprintf("/%s.%s/%s", service, mParts[0], mParts[1])
 }
 
-func newGRPCRequest(service, method string, request interface{}, contentType string, reqOpts ...client.RequestOption) client.Request {
-	var opts client.RequestOptions
-	for _, o := range reqOpts {
-		o(&opts)
-	}
+func newGRPCRequest(service, method string, request interface{}, contentType string, opts ...client.RequestOption) client.Request {
+	options := client.NewRequestOptions(opts...)
 
 	// set the content-type specified
-	if len(opts.ContentType) > 0 {
-		contentType = opts.ContentType
+	if len(options.ContentType) > 0 {
+		contentType = options.ContentType
 	}
 
 	return &grpcRequest{
@@ -54,7 +51,7 @@ func newGRPCRequest(service, method string, request interface{}, contentType str
 		method:      method,
 		request:     request,
 		contentType: contentType,
-		opts:        opts,
+		opts:        options,
 	}
 }
 
