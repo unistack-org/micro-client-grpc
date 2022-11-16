@@ -23,7 +23,7 @@ func (r *response) Codec() codec.Codec {
 func (r *response) Header() metadata.Metadata {
 	meta, err := r.stream.Header()
 	if err != nil {
-		return metadata.New(0)
+		return nil
 	}
 	md := metadata.New(len(meta))
 	for k, v := range meta {

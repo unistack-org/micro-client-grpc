@@ -70,9 +70,7 @@ func Codec(contentType string, c encoding.Codec) client.Option {
 
 type maxRecvMsgSizeKey struct{}
 
-//
 // MaxRecvMsgSize set the maximum size of message that client can receive.
-//
 func MaxRecvMsgSize(s int) client.Option {
 	return func(o *client.Options) {
 		if o.Context == nil {
@@ -84,9 +82,7 @@ func MaxRecvMsgSize(s int) client.Option {
 
 type maxSendMsgSizeKey struct{}
 
-//
 // MaxSendMsgSize set the maximum size of message that client can send.
-//
 func MaxSendMsgSize(s int) client.Option {
 	return func(o *client.Options) {
 		if o.Context == nil {
@@ -98,9 +94,7 @@ func MaxSendMsgSize(s int) client.Option {
 
 type grpcDialOptions struct{}
 
-//
 // DialOptions to be used to configure gRPC dial options
-//
 func DialOptions(opts ...grpc.DialOption) client.CallOption {
 	return func(o *client.CallOptions) {
 		if o.Context == nil {
@@ -112,9 +106,7 @@ func DialOptions(opts ...grpc.DialOption) client.CallOption {
 
 type grpcCallOptions struct{}
 
-//
 // CallOptions to be used to configure gRPC call options
-//
 func CallOptions(opts ...grpc.CallOption) client.CallOption {
 	return func(o *client.CallOptions) {
 		if o.Context == nil {
