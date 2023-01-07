@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	DefaultContentType = "application/grpc+proto"
+	DefaultContentType = "application/grpc"
 )
 
 type grpcClient struct {
