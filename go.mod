@@ -4,6 +4,5 @@ go 1.16
 
 require (
 	go.unistack.org/micro/v3 v3.10.5
-	google.golang.org/genproto v0.0.0-20220429170224-98d788798c3e // indirect
-	google.golang.org/grpc v1.51.0
+	google.golang.org/grpc v1.52.3
 )
