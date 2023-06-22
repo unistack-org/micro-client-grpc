@@ -95,8 +95,8 @@ func MaxSendMsgSize(s int) client.Option {
 type grpcDialOptions struct{}
 
 // DialOptions to be used to configure gRPC dial options
-func DialOptions(opts ...grpc.DialOption) client.CallOption {
-	return func(o *client.CallOptions) {
+func DialOptions(opts ...grpc.DialOption) client.Option {
+	return func(o *client.Options) {
 		if o.Context == nil {
 			o.Context = context.Background()
 		}
