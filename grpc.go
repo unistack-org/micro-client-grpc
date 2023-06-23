@@ -118,6 +118,9 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 		),
 	}
 
+	if opts := g.getGrpcDialOptions(g.opts.Context); opts != nil {
+		grpcDialOptions = append(grpcDialOptions, opts...)
+	}
 	if opts := g.getGrpcDialOptions(opts.Context); opts != nil {
 		grpcDialOptions = append(grpcDialOptions, opts...)
 	}
