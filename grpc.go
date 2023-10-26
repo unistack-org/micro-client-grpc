@@ -730,6 +730,12 @@ func (g *grpcClient) publish(ctx context.Context, ps []client.Message, opts ...c
 		md := metadata.Copy(omd)
 		md[metadata.HeaderContentType] = p.ContentType()
 
+		iter := p.Metadata().Iterator()
+		var k, v string
+		for iter.Next(&k, &v) {
+			md.Set(k, v)
+		}
+
 		// passed in raw data
 		if d, ok := p.Payload().(*codec.Frame); ok {
 			body = d.Data
