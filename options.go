@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	// DefaultPoolMaxStreams maximum streams on a connectioin
+	// DefaultPoolMaxStreams maximum streams on a connection
 	// (20)
 	DefaultPoolMaxStreams = 20
 

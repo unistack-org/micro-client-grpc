@@ -17,7 +17,7 @@ type grpcStream struct {
 	request  client.Request
 	response client.Response
 	close    func(err error)
-	conn     *poolConn
+	conn     *PoolConn
 	sync.RWMutex
 	closed bool
 }
