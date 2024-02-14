@@ -21,22 +21,22 @@ type ConnPool struct {
 
 type streamsPool struct {
 	//  head of list
-	head *poolConn
+	head *PoolConn
 	//  busy conns list
-	busy *poolConn
+	busy *PoolConn
 	//  the siza of list
 	count int
 	//  idle conn
 	idle int
 }
 
-type poolConn struct {
+type PoolConn struct {
 	err error
 	*grpc.ClientConn
-	next    *poolConn
+	next    *PoolConn
 	pool    *ConnPool
 	sp      *streamsPool
-	pre     *poolConn
+	pre     *PoolConn
 	addr    string
 	streams int
 	created int64
@@ -59,7 +59,7 @@ func NewConnPool(size int, ttl time.Duration, idle int, ms int) *ConnPool {
 	}
 }
 
-func (p *ConnPool) Get(ctx context.Context, addr string, opts ...grpc.DialOption) (*poolConn, error) {
+func (p *ConnPool) Get(ctx context.Context, addr string, opts ...grpc.DialOption) (*PoolConn, error) {
 	if strings.HasPrefix(addr, "http") {
 		addr = addr[strings.Index(addr, ":")+3:]
 	}
@@ -67,7 +67,7 @@ func (p *ConnPool) Get(ctx context.Context, addr string, opts ...grpc.DialOption
 	p.Lock()
 	sp, ok := p.conns[addr]
 	if !ok {
-		sp = &streamsPool{head: &poolConn{}, busy: &poolConn{}, count: 0, idle: 0}
+		sp = &streamsPool{head: &PoolConn{}, busy: &PoolConn{}, count: 0, idle: 0}
 		p.conns[addr] = sp
 	}
 	//  while we have conns check streams and then return one
@@ -135,7 +135,7 @@ func (p *ConnPool) Get(ctx context.Context, addr string, opts ...grpc.DialOption
 	if err != nil {
 		return nil, err
 	}
-	conn = &poolConn{ClientConn: cc, err: nil, addr: addr, pool: p, sp: sp, streams: 1, created: time.Now().Unix(), pre: nil, next: nil, in: false}
+	conn = &PoolConn{ClientConn: cc, err: nil, addr: addr, pool: p, sp: sp, streams: 1, created: time.Now().Unix(), pre: nil, next: nil, in: false}
 
 	//  add conn to streams pool
 	p.Lock()
@@ -147,7 +147,7 @@ func (p *ConnPool) Get(ctx context.Context, addr string, opts ...grpc.DialOption
 	return conn, nil
 }
 
-func (p *ConnPool) Put(conn *poolConn, err error) {
+func (p *ConnPool) Put(conn *PoolConn, err error) {
 	p.Lock()
 	p, sp, created := conn.pool, conn.sp, conn.created
 	//  try to add conn
@@ -182,11 +182,11 @@ func (p *ConnPool) Put(conn *poolConn, err error) {
 	p.Unlock()
 }
 
-func (conn *poolConn) Close() {
+func (conn *PoolConn) Close() {
 	conn.pool.Put(conn, conn.err)
 }
 
-func removeConn(conn *poolConn) {
+func removeConn(conn *PoolConn) {
 	if conn.pre != nil {
 		conn.pre.next = conn.next
 	}
@@ -199,7 +199,7 @@ func removeConn(conn *poolConn) {
 	conn.sp.count--
 }
 
-func addConnAfter(conn *poolConn, after *poolConn) {
+func addConnAfter(conn *PoolConn, after *PoolConn) {
 	conn.next = after.next
 	conn.pre = after
 	if after.next != nil {
