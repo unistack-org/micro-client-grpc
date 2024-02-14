@@ -30,7 +30,7 @@ const (
 )
 
 type grpcClient struct {
-	pool *pool
+	pool *ConnPool
 	opts client.Options
 	sync.RWMutex
 	init bool
@@ -133,13 +133,13 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 		grpcDialOptions = append(grpcDialOptions, grpc.WithContextDialer(contextDialer))
 	}
 
-	cc, err := g.pool.getConn(dialCtx, addr, grpcDialOptions...)
+	cc, err := g.pool.Get(dialCtx, addr, grpcDialOptions...)
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", fmt.Sprintf("Error sending request: %v", err))
 	}
 	defer func() {
 		// defer execution of release
-		g.pool.release(cc, grr)
+		g.pool.Put(cc, grr)
 	}()
 
 	ch := make(chan error, 1)
@@ -242,7 +242,7 @@ func (g *grpcClient) stream(ctx context.Context, addr string, req client.Request
 		grpcDialOptions = append(grpcDialOptions, grpc.WithContextDialer(contextDialer))
 	}
 
-	cc, err := g.pool.getConn(dialCtx, addr, grpcDialOptions...)
+	cc, err := g.pool.Get(dialCtx, addr, grpcDialOptions...)
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", fmt.Sprintf("Error sending request: %v", err))
 	}
@@ -275,7 +275,7 @@ func (g *grpcClient) stream(ctx context.Context, addr string, req client.Request
 		// cancel the context
 		cancel()
 		// release the connection
-		g.pool.release(cc, err)
+		g.pool.Put(cc, err)
 		// now return the error
 		return errors.InternalServerError("go.micro.client", fmt.Sprintf("Error creating stream: %v", err))
 	}
@@ -303,7 +303,7 @@ func (g *grpcClient) stream(ctx context.Context, addr string, req client.Request
 			}
 
 			// defer execution of release
-			g.pool.release(cc, err)
+			g.pool.Put(cc, err)
 		},
 	}
 
@@ -833,7 +833,7 @@ func NewClient(opts ...client.Option) client.Client {
 		opts: options,
 	}
 
-	rc.pool = newPool(options.PoolSize, options.PoolTTL, rc.poolMaxIdle(), rc.poolMaxStreams())
+	rc.pool = NewConnPool(options.PoolSize, options.PoolTTL, rc.poolMaxIdle(), rc.poolMaxStreams())
 
 	c := client.Client(rc)
 

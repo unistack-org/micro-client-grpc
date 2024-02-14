@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/connectivity"
 )
 
-type pool struct {
+type ConnPool struct {
 	conns      map[string]*streamsPool
 	size       int
 	ttl        int64
@@ -34,7 +34,7 @@ type poolConn struct {
 	err error
 	*grpc.ClientConn
 	next    *poolConn
-	pool    *pool
+	pool    *ConnPool
 	sp      *streamsPool
 	pre     *poolConn
 	addr    string
@@ -43,14 +43,14 @@ type poolConn struct {
 	in      bool
 }
 
-func newPool(size int, ttl time.Duration, idle int, ms int) *pool {
+func NewConnPool(size int, ttl time.Duration, idle int, ms int) *ConnPool {
 	if ms <= 0 {
 		ms = 1
 	}
 	if idle < 0 {
 		idle = 0
 	}
-	return &pool{
+	return &ConnPool{
 		size:       size,
 		ttl:        int64(ttl.Seconds()),
 		maxStreams: ms,
@@ -59,7 +59,7 @@ func newPool(size int, ttl time.Duration, idle int, ms int) *pool {
 	}
 }
 
-func (p *pool) getConn(ctx context.Context, addr string, opts ...grpc.DialOption) (*poolConn, error) {
+func (p *ConnPool) Get(ctx context.Context, addr string, opts ...grpc.DialOption) (*poolConn, error) {
 	if strings.HasPrefix(addr, "http") {
 		addr = addr[strings.Index(addr, ":")+3:]
 	}
@@ -147,7 +147,7 @@ func (p *pool) getConn(ctx context.Context, addr string, opts ...grpc.DialOption
 	return conn, nil
 }
 
-func (p *pool) release(conn *poolConn, err error) {
+func (p *ConnPool) Put(conn *poolConn, err error) {
 	p.Lock()
 	p, sp, created := conn.pool, conn.sp, conn.created
 	//  try to add conn
@@ -183,7 +183,7 @@ func (p *pool) release(conn *poolConn, err error) {
 }
 
 func (conn *poolConn) Close() {
-	conn.pool.release(conn, conn.err)
+	conn.pool.Put(conn, conn.err)
 }
 
 func removeConn(conn *poolConn) {
