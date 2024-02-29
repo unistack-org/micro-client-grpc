@@ -98,6 +98,7 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 
 	maxRecvMsgSize := g.maxRecvMsgSizeValue()
 	maxSendMsgSize := g.maxSendMsgSizeValue()
+	cfgService := g.serviceConfig()
 
 	var grr error
 
@@ -116,6 +117,7 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 			grpc.MaxCallRecvMsgSize(maxRecvMsgSize),
 			grpc.MaxCallSendMsgSize(maxSendMsgSize),
 		),
+		grpc.WithDefaultServiceConfig(cfgService),
 	}
 
 	if opts := g.getGrpcDialOptions(g.opts.Context); opts != nil {
@@ -221,6 +223,7 @@ func (g *grpcClient) stream(ctx context.Context, addr string, req client.Request
 
 	maxRecvMsgSize := g.maxRecvMsgSizeValue()
 	maxSendMsgSize := g.maxSendMsgSizeValue()
+	cfgService := g.serviceConfig()
 
 	grpcDialOptions := []grpc.DialOption{
 		g.secure(addr),
@@ -228,6 +231,7 @@ func (g *grpcClient) stream(ctx context.Context, addr string, req client.Request
 			grpc.MaxCallRecvMsgSize(maxRecvMsgSize),
 			grpc.MaxCallSendMsgSize(maxSendMsgSize),
 		),
+		grpc.WithDefaultServiceConfig(cfgService),
 	}
 
 	if opts := g.getGrpcDialOptions(opts.Context); opts != nil {
@@ -370,6 +374,17 @@ func (g *grpcClient) newCodec(ct string) (codec.Codec, error) {
 		return c, nil
 	}
 	return nil, codec.ErrUnknownContentType
+}
+
+func (g *grpcClient) serviceConfig() string {
+	if g.opts.Context == nil {
+		return DefaultServiceConfig
+	}
+	v := g.opts.Context.Value(serviceConfigKey{})
+	if v == nil {
+		return DefaultServiceConfig
+	}
+	return v.(string)
 }
 
 func (g *grpcClient) Init(opts ...client.Option) error {
@@ -760,7 +775,6 @@ func (g *grpcClient) publish(ctx context.Context, ps []client.Message, opts ...c
 			}
 			body = b
 		}
-
 		msgs = append(msgs, &broker.Message{Header: md, Body: body})
 	}
 
@@ -834,7 +848,6 @@ func NewClient(opts ...client.Option) client.Client {
 	}
 
 	rc.pool = NewConnPool(options.PoolSize, options.PoolTTL, rc.poolMaxIdle(), rc.poolMaxStreams())
-
 	c := client.Client(rc)
 
 	// wrap in reverse

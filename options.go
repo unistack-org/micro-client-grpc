@@ -25,6 +25,9 @@ var (
 	// DefaultMaxSendMsgSize maximum message that client can send
 	// (4 MB).
 	DefaultMaxSendMsgSize = 1024 * 1024 * 4
+
+	// DefaultServiceConfig enable load balancing
+	DefaultServiceConfig = `{"loadBalancingPolicy":"round_robin"}`
 )
 
 type poolMaxStreams struct{}
@@ -113,5 +116,16 @@ func CallOptions(opts ...grpc.CallOption) client.CallOption {
 			o.Context = context.Background()
 		}
 		o.Context = context.WithValue(o.Context, grpcCallOptions{}, opts)
+	}
+}
+
+type serviceConfigKey struct{}
+
+func ServiceConfig(str string) client.CallOption {
+	return func(options *client.CallOptions) {
+		if options.Context == nil {
+			options.Context = context.Background()
+		}
+		options.Context = context.WithValue(options.Context, serviceConfigKey{}, str)
 	}
 }
