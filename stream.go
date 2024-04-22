@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"go.unistack.org/micro/v3/client"
+	"go.unistack.org/micro/v3/tracer"
 	"google.golang.org/grpc"
 )
 
@@ -111,6 +112,12 @@ func (g *grpcStream) Close() error {
 		return nil
 	}
 
+	if sp, ok := tracer.SpanFromContext(g.context); ok && sp != nil {
+		if g.err != nil {
+			sp.SetStatus(tracer.SpanStatusError, g.err.Error())
+		}
+		sp.Finish()
+	}
 	// close the connection
 	g.closed = true
 	g.close(g.err)
