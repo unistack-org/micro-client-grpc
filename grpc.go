@@ -1,5 +1,5 @@
-// Package grpc provides a gRPC client
-package grpc // import "go.unistack.org/micro-client-grpc/v3"
+// Package grpc provides a gRPC client for micro framework
+package grpc
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -17,12 +18,17 @@ import (
 	"go.unistack.org/micro/v3/codec"
 	"go.unistack.org/micro/v3/errors"
 	"go.unistack.org/micro/v3/metadata"
+	"go.unistack.org/micro/v3/options"
 	"go.unistack.org/micro/v3/selector"
+	"go.unistack.org/micro/v3/semconv"
+	"go.unistack.org/micro/v3/tracer"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/encoding"
 	gmetadata "google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -30,8 +36,12 @@ const (
 )
 
 type grpcClient struct {
-	pool *ConnPool
-	opts client.Options
+	funcPublish      client.FuncPublish
+	funcBatchPublish client.FuncBatchPublish
+	funcCall         client.FuncCall
+	funcStream       client.FuncStream
+	pool             *ConnPool
+	opts             client.Options
 	sync.RWMutex
 	init bool
 }
@@ -406,26 +416,23 @@ func (g *grpcClient) Init(opts ...client.Option) error {
 		g.pool.Unlock()
 	}
 
-	if err := g.opts.Broker.Init(); err != nil {
-		return err
-	}
-	if err := g.opts.Tracer.Init(); err != nil {
-		return err
-	}
-	if err := g.opts.Router.Init(); err != nil {
-		return err
-	}
-	if err := g.opts.Logger.Init(); err != nil {
-		return err
-	}
-	if err := g.opts.Meter.Init(); err != nil {
-		return err
-	}
-	if err := g.opts.Transport.Init(); err != nil {
-		return err
-	}
+	g.funcCall = g.fnCall
+	g.funcStream = g.fnStream
+	g.funcPublish = g.fnPublish
+	g.funcBatchPublish = g.fnBatchPublish
 
-	g.init = true
+	g.opts.Hooks.EachNext(func(hook options.Hook) {
+		switch h := hook.(type) {
+		case client.HookCall:
+			g.funcCall = h(g.funcCall)
+		case client.HookStream:
+			g.funcStream = h(g.funcStream)
+		case client.HookPublish:
+			g.funcPublish = h(g.funcPublish)
+		case client.HookBatchPublish:
+			g.funcBatchPublish = h(g.funcBatchPublish)
+		}
+	})
 
 	return nil
 }
@@ -448,6 +455,32 @@ func (g *grpcClient) Call(ctx context.Context, req client.Request, rsp interface
 	} else if rsp == nil {
 		return errors.InternalServerError("go.micro.client", "rsp is nil")
 	}
+
+	ts := time.Now()
+	g.opts.Meter.Counter(semconv.ClientRequestInflight, "endpoint", req.Endpoint()).Inc()
+	var sp tracer.Span
+	ctx, sp = g.opts.Tracer.Start(ctx, req.Endpoint()+" rpc-client",
+		tracer.WithSpanKind(tracer.SpanKindClient),
+		tracer.WithSpanLabels("endpoint", req.Endpoint()),
+	)
+	err := g.funcCall(ctx, req, rsp, opts...)
+	g.opts.Meter.Counter(semconv.ClientRequestInflight, "endpoint", req.Endpoint()).Dec()
+	te := time.Since(ts)
+	g.opts.Meter.Summary(semconv.ClientRequestLatencyMicroseconds, "endpoint", req.Endpoint()).Update(te.Seconds())
+	g.opts.Meter.Histogram(semconv.ClientRequestDurationSeconds, "endpoint", req.Endpoint()).Update(te.Seconds())
+
+	if me := errors.FromError(err); me == nil {
+		sp.Finish()
+		g.opts.Meter.Counter(semconv.ClientRequestTotal, "endpoint", req.Endpoint(), "status", "success", "code", strconv.Itoa(int(200))).Inc()
+	} else {
+		sp.SetStatus(tracer.SpanStatusError, err.Error())
+		g.opts.Meter.Counter(semconv.ClientRequestTotal, "endpoint", req.Endpoint(), "status", "failure", "code", strconv.Itoa(int(me.Code))).Inc()
+	}
+
+	return err
+}
+
+func (g *grpcClient) fnCall(ctx context.Context, req client.Request, rsp interface{}, opts ...client.CallOption) error {
 	// make a copy of call opts
 	callOpts := g.opts.CallOptions
 
@@ -478,11 +511,6 @@ func (g *grpcClient) Call(ctx context.Context, req client.Request, rsp interface
 
 	// make copy of call method
 	gcall := g.call
-
-	// wrap the call in reverse
-	for i := len(callOpts.CallWrappers); i > 0; i-- {
-		gcall = callOpts.CallWrappers[i-1](gcall)
-	}
 
 	// use the router passed as a call option, or fallback to the rpc clients router
 	if callOpts.Router == nil {
@@ -583,6 +611,31 @@ func (g *grpcClient) Call(ctx context.Context, req client.Request, rsp interface
 }
 
 func (g *grpcClient) Stream(ctx context.Context, req client.Request, opts ...client.CallOption) (client.Stream, error) {
+	ts := time.Now()
+	g.opts.Meter.Counter(semconv.ClientRequestInflight, "endpoint", req.Endpoint()).Inc()
+	var sp tracer.Span
+	ctx, sp = g.opts.Tracer.Start(ctx, req.Endpoint()+" rpc-client",
+		tracer.WithSpanKind(tracer.SpanKindClient),
+		tracer.WithSpanLabels("endpoint", req.Endpoint()),
+	)
+	stream, err := g.funcStream(ctx, req, opts...)
+	g.opts.Meter.Counter(semconv.ClientRequestInflight, "endpoint", req.Endpoint()).Dec()
+	te := time.Since(ts)
+	g.opts.Meter.Summary(semconv.ClientRequestLatencyMicroseconds, "endpoint", req.Endpoint()).Update(te.Seconds())
+	g.opts.Meter.Histogram(semconv.ClientRequestDurationSeconds, "endpoint", req.Endpoint()).Update(te.Seconds())
+
+	if me := status.Convert(err); me == nil {
+		sp.Finish()
+		g.opts.Meter.Counter(semconv.ClientRequestTotal, "endpoint", req.Endpoint(), "status", "success", "code", strconv.Itoa(int(codes.OK))).Inc()
+	} else {
+		sp.SetStatus(tracer.SpanStatusError, err.Error())
+		g.opts.Meter.Counter(semconv.ClientRequestTotal, "endpoint", req.Endpoint(), "status", "failure", "code", strconv.Itoa(int(me.Code()))).Inc()
+	}
+
+	return stream, err
+}
+
+func (g *grpcClient) fnStream(ctx context.Context, req client.Request, opts ...client.CallOption) (client.Stream, error) {
 	// make a copy of call opts
 	callOpts := g.opts.CallOptions
 	for _, opt := range opts {
@@ -600,11 +653,6 @@ func (g *grpcClient) Stream(ctx context.Context, req client.Request, opts ...cli
 
 	// make a copy of stream
 	gstream := g.stream
-
-	// wrap the call in reverse
-	for i := len(callOpts.CallWrappers); i > 0; i-- {
-		gstream = callOpts.CallWrappers[i-1](gstream)
-	}
 
 	// use the router passed as a call option, or fallback to the rpc clients router
 	if callOpts.Router == nil {
@@ -716,10 +764,18 @@ func (g *grpcClient) Stream(ctx context.Context, req client.Request, opts ...cli
 }
 
 func (g *grpcClient) BatchPublish(ctx context.Context, ps []client.Message, opts ...client.PublishOption) error {
+	return g.funcBatchPublish(ctx, ps, opts...)
+}
+
+func (g *grpcClient) fnBatchPublish(ctx context.Context, ps []client.Message, opts ...client.PublishOption) error {
 	return g.publish(ctx, ps, opts...)
 }
 
 func (g *grpcClient) Publish(ctx context.Context, p client.Message, opts ...client.PublishOption) error {
+	return g.funcPublish(ctx, p, opts...)
+}
+
+func (g *grpcClient) fnPublish(ctx context.Context, p client.Message, opts ...client.PublishOption) error {
 	return g.publish(ctx, []client.Message{p}, opts...)
 }
 
@@ -843,22 +899,16 @@ func NewClient(opts ...client.Option) client.Client {
 		options.ContentType = DefaultContentType
 	}
 
-	rc := &grpcClient{
+	c := &grpcClient{
 		opts: options,
 	}
 
-	rc.pool = NewConnPool(options.PoolSize, options.PoolTTL, rc.poolMaxIdle(), rc.poolMaxStreams())
-	c := client.Client(rc)
+	c.pool = NewConnPool(options.PoolSize, options.PoolTTL, c.poolMaxIdle(), c.poolMaxStreams())
 
-	// wrap in reverse
-	for i := len(options.Wrappers); i > 0; i-- {
-		c = options.Wrappers[i-1](c)
-	}
-
-	if rc.opts.Context != nil {
-		if codecs, ok := rc.opts.Context.Value(codecsKey{}).(map[string]encoding.Codec); ok && codecs != nil {
+	if c.opts.Context != nil {
+		if codecs, ok := c.opts.Context.Value(codecsKey{}).(map[string]encoding.Codec); ok && codecs != nil {
 			for k, v := range codecs {
-				rc.opts.Codecs[k] = &wrapGrpcCodec{v}
+				c.opts.Codecs[k] = &wrapGrpcCodec{v}
 			}
 		}
 	}
@@ -866,6 +916,11 @@ func NewClient(opts ...client.Option) client.Client {
 	for _, k := range options.Codecs {
 		encoding.RegisterCodec(&wrapMicroCodec{k})
 	}
+
+	c.funcCall = c.fnCall
+	c.funcStream = c.fnStream
+	c.funcPublish = c.fnPublish
+	c.funcBatchPublish = c.fnBatchPublish
 
 	return c
 }

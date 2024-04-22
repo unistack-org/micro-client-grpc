@@ -3,15 +3,14 @@ module go.unistack.org/micro-client-grpc/v3
 go 1.20
 
 require (
-	go.unistack.org/micro/v3 v3.10.28
-	google.golang.org/grpc v1.59.0
+	go.unistack.org/micro/v3 v3.10.64
+	google.golang.org/grpc v1.63.2
 )
 
 require (
-	github.com/golang/protobuf v1.5.3 // indirect
-	golang.org/x/net v0.17.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
-	golang.org/x/text v0.13.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231016165738-49dd2c1f3d0b // indirect
-	google.golang.org/protobuf v1.31.0 // indirect
+	golang.org/x/net v0.24.0 // indirect
+	golang.org/x/sys v0.19.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240415180920-8c6c420018be // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 )
