@@ -34,9 +34,5 @@ func (r *response) Header() metadata.Metadata {
 
 // Read the undecoded response
 func (r *response) Read() ([]byte, error) {
-	f := &codec.Frame{}
-	if err := r.codec.ReadBody(&wrapStream{r.stream}, f); err != nil {
-		return nil, err
-	}
-	return f.Data, nil
+	return nil, nil
 }

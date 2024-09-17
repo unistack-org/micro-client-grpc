@@ -1,8 +1,6 @@
 package grpc
 
 import (
-	"io"
-
 	"go.unistack.org/micro/v3/codec"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/encoding"
@@ -64,64 +62,4 @@ func (w *wrapGrpcCodec) Unmarshal(d []byte, v interface{}, opts ...codec.Option)
 		return nil
 	}
 	return w.Codec.Unmarshal(d, v)
-}
-
-/*
-type grpcCodec struct {
-	grpc.ServerStream
-	// headers
-	id       string
-	target   string
-	method   string
-	endpoint string
-
-	c encoding.Codec
-}
-
-*/
-
-func (w *wrapGrpcCodec) ReadHeader(conn io.Reader, m *codec.Message, mt codec.MessageType) error {
-	/*
-		if m == nil {
-			m = codec.NewMessage(codec.Request)
-		}
-
-		if md, ok := metadata.FromIncomingContext(g.ServerStream.Context()); ok {
-			if m.Header == nil {
-				m.Header = meta.New(len(md))
-			}
-			for k, v := range md {
-				m.Header[k] = strings.Join(v, ",")
-			}
-		}
-
-		m.Id = g.id
-		m.Target = g.target
-		m.Method = g.method
-		m.Endpoint = g.endpoint
-	*/
-	return nil
-}
-
-func (w *wrapGrpcCodec) ReadBody(conn io.Reader, v interface{}) error {
-	// caller has requested a frame
-	if m, ok := v.(*codec.Frame); ok {
-		_, err := conn.Read(m.Data)
-		return err
-	}
-	return codec.ErrInvalidMessage
-}
-
-func (w *wrapGrpcCodec) Write(conn io.Writer, m *codec.Message, v interface{}) error {
-	// if we don't have a body
-	if v != nil {
-		b, err := w.Marshal(v)
-		if err != nil {
-			return err
-		}
-		m.Body = b
-	}
-	// write the body using the framing codec
-	_, err := conn.Write(m.Body)
-	return err
 }
