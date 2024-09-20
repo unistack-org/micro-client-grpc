@@ -5,8 +5,8 @@ go 1.21
 toolchain go1.23.1
 
 require (
-	go.unistack.org/micro/v3 v3.10.88
-	google.golang.org/grpc v1.66.2
+	go.unistack.org/micro/v3 v3.10.91
+	google.golang.org/grpc v1.67.0
 )
 
 require (
