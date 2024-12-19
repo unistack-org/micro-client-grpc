@@ -130,7 +130,7 @@ func (p *ConnPool) Get(ctx context.Context, addr string, opts ...grpc.DialOption
 	}
 	p.Unlock()
 
-	//  create new conn)
+	// nolint (TODO need fix)  create new conn)
 	cc, err := grpc.DialContext(ctx, addr, opts...)
 	if err != nil {
 		return nil, err
