@@ -803,7 +803,6 @@ func (g *grpcClient) publish(ctx context.Context, ps []client.Message, opts ...c
 
 	for _, p := range ps {
 		md := metadata.Copy(omd)
-		md[metadata.HeaderContentType] = p.ContentType()
 		topic := p.Topic()
 		if len(exchange) > 0 {
 			topic = exchange
@@ -814,6 +813,8 @@ func (g *grpcClient) publish(ctx context.Context, ps []client.Message, opts ...c
 		for iter.Next(&k, &v) {
 			md.Set(k, v)
 		}
+
+		md[metadata.HeaderContentType] = p.ContentType()
 
 		// passed in raw data
 		if d, ok := p.Payload().(*codec.Frame); ok {
