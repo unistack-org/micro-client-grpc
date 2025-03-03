@@ -1,10 +1,8 @@
 package grpc
 
 import (
-	"strings"
-
-	"go.unistack.org/micro/v3/codec"
-	"go.unistack.org/micro/v3/metadata"
+	"go.unistack.org/micro/v4/codec"
+	"go.unistack.org/micro/v4/metadata"
 	"google.golang.org/grpc"
 )
 
@@ -25,14 +23,19 @@ func (r *response) Header() metadata.Metadata {
 	if err != nil {
 		return nil
 	}
-	md := metadata.New(len(meta))
-	for k, v := range meta {
-		md.Set(k, strings.Join(v, ","))
-	}
-	return md
+
+	return metadata.Metadata(meta.Copy())
 }
 
 // Read the undecoded response
 func (r *response) Read() ([]byte, error) {
-	return nil, nil
+	f := &codec.Frame{}
+	wrap := &wrapStream{r.stream}
+
+	_, err := wrap.Read(f.Data)
+	if err != nil {
+		return nil, err
+	}
+
+	return f.Data, nil
 }

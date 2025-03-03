@@ -4,7 +4,7 @@ package grpc
 import (
 	"context"
 
-	"go.unistack.org/micro/v3/client"
+	"go.unistack.org/micro/v4/client"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/encoding"
 )

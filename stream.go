@@ -5,8 +5,8 @@ import (
 	"io"
 	"sync"
 
-	"go.unistack.org/micro/v3/client"
-	"go.unistack.org/micro/v3/tracer"
+	"go.unistack.org/micro/v4/client"
+	"go.unistack.org/micro/v4/tracer"
 	"google.golang.org/grpc"
 )
 

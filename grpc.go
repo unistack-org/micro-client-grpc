@@ -6,22 +6,20 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"go.unistack.org/micro/v3/broker"
-	"go.unistack.org/micro/v3/client"
-	"go.unistack.org/micro/v3/codec"
-	"go.unistack.org/micro/v3/errors"
-	"go.unistack.org/micro/v3/metadata"
-	"go.unistack.org/micro/v3/options"
-	"go.unistack.org/micro/v3/selector"
-	"go.unistack.org/micro/v3/semconv"
-	"go.unistack.org/micro/v3/tracer"
+	"go.unistack.org/micro/v4/client"
+	"go.unistack.org/micro/v4/codec"
+	"go.unistack.org/micro/v4/errors"
+	"go.unistack.org/micro/v4/metadata"
+	"go.unistack.org/micro/v4/options"
+	"go.unistack.org/micro/v4/selector"
+	"go.unistack.org/micro/v4/semconv"
+	"go.unistack.org/micro/v4/tracer"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -36,12 +34,10 @@ const (
 )
 
 type grpcClient struct {
-	funcPublish      client.FuncPublish
-	funcBatchPublish client.FuncBatchPublish
-	funcCall         client.FuncCall
-	funcStream       client.FuncStream
-	pool             *ConnPool
-	opts             client.Options
+	funcCall   client.FuncCall
+	funcStream client.FuncStream
+	pool       *ConnPool
+	opts       client.Options
 	sync.RWMutex
 	init bool
 }
@@ -78,15 +74,12 @@ func (g *grpcClient) secure(addr string) grpc.DialOption {
 }
 
 func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, rsp interface{}, opts client.CallOptions) error {
-	var header map[string]string
+	var header map[string][]string
 
 	if md, ok := metadata.FromOutgoingContext(ctx); ok {
-		header = make(map[string]string, len(md))
-		for k, v := range md {
-			header[strings.ToLower(k)] = v
-		}
+		header = metadata.Copy(md)
 	} else {
-		header = make(map[string]string, 2)
+		header = make(map[string][]string, 2)
 	}
 	if opts.RequestMetadata != nil {
 		for k, v := range opts.RequestMetadata {
@@ -94,12 +87,11 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 		}
 	}
 	// set timeout in nanoseconds
-	header["Grpc-Timeout"] = fmt.Sprintf("%dn", opts.RequestTimeout)
-	header["timeout"] = fmt.Sprintf("%dn", opts.RequestTimeout)
-	header["content-type"] = req.ContentType()
+	header["grpc-timeout"] = append(header["grpc-timeout"], fmt.Sprintf("%dn", opts.RequestTimeout))
+	header["timeout"] = append(header["timeout"], fmt.Sprintf("%dn", opts.RequestTimeout))
+	header["content-type"] = append(header["content-type"], req.ContentType())
 
-	md := gmetadata.New(header)
-	ctx = gmetadata.NewOutgoingContext(ctx, md)
+	ctx = gmetadata.NewOutgoingContext(ctx, header)
 
 	cf, err := g.newCodec(req.ContentType())
 	if err != nil {
@@ -185,7 +177,7 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 	if opts.ResponseMetadata != nil {
 		*opts.ResponseMetadata = metadata.New(gmd.Len())
 		for k, v := range gmd {
-			opts.ResponseMetadata.Set(k, strings.Join(v, ","))
+			opts.ResponseMetadata.Append(k, v...)
 		}
 	}
 
@@ -193,27 +185,23 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 }
 
 func (g *grpcClient) stream(ctx context.Context, addr string, req client.Request, rsp interface{}, opts client.CallOptions) error {
-	var header map[string]string
+	var header map[string][]string
 
 	if md, ok := metadata.FromOutgoingContext(ctx); ok {
-		header = make(map[string]string, len(md))
-		for k, v := range md {
-			header[k] = v
-		}
+		header = metadata.Copy(md)
 	} else {
-		header = make(map[string]string)
+		header = make(map[string][]string)
 	}
 
 	// set timeout in nanoseconds
 	if opts.StreamTimeout > time.Duration(0) {
-		header["Grpc-Timeout"] = fmt.Sprintf("%dn", opts.StreamTimeout)
-		header["timeout"] = fmt.Sprintf("%dn", opts.StreamTimeout)
+		header["grpc-timeout"] = append(header["grpc-timeout"], fmt.Sprintf("%dn", opts.RequestTimeout))
+		header["timeout"] = append(header["timeout"], fmt.Sprintf("%dn", opts.RequestTimeout))
 	}
 	// set the content type for the request
-	header["content-type"] = req.ContentType()
+	header["content-type"] = append(header["content-type"], req.ContentType())
 
-	md := gmetadata.New(header)
-	ctx = gmetadata.NewOutgoingContext(ctx, md)
+	ctx = gmetadata.NewOutgoingContext(ctx, header)
 
 	cf, err := g.newCodec(req.ContentType())
 	if err != nil {
@@ -418,8 +406,6 @@ func (g *grpcClient) Init(opts ...client.Option) error {
 
 	g.funcCall = g.fnCall
 	g.funcStream = g.fnStream
-	g.funcPublish = g.fnPublish
-	g.funcBatchPublish = g.fnBatchPublish
 
 	g.opts.Hooks.EachPrev(func(hook options.Hook) {
 		switch h := hook.(type) {
@@ -427,22 +413,15 @@ func (g *grpcClient) Init(opts ...client.Option) error {
 			g.funcCall = h(g.funcCall)
 		case client.HookStream:
 			g.funcStream = h(g.funcStream)
-		case client.HookPublish:
-			g.funcPublish = h(g.funcPublish)
-		case client.HookBatchPublish:
-			g.funcBatchPublish = h(g.funcBatchPublish)
 		}
 	})
+	g.init = true
 
 	return nil
 }
 
 func (g *grpcClient) Options() client.Options {
 	return g.opts
-}
-
-func (g *grpcClient) NewMessage(topic string, msg interface{}, opts ...client.MessageOption) client.Message {
-	return newGRPCEvent(topic, msg, g.opts.ContentType, opts...)
 }
 
 func (g *grpcClient) NewRequest(service, method string, req interface{}, reqOpts ...client.RequestOption) client.Request {
@@ -763,84 +742,6 @@ func (g *grpcClient) fnStream(ctx context.Context, req client.Request, opts ...c
 	return nil, grr
 }
 
-func (g *grpcClient) BatchPublish(ctx context.Context, ps []client.Message, opts ...client.PublishOption) error {
-	return g.funcBatchPublish(ctx, ps, opts...)
-}
-
-func (g *grpcClient) fnBatchPublish(ctx context.Context, ps []client.Message, opts ...client.PublishOption) error {
-	return g.publish(ctx, ps, opts...)
-}
-
-func (g *grpcClient) Publish(ctx context.Context, p client.Message, opts ...client.PublishOption) error {
-	return g.funcPublish(ctx, p, opts...)
-}
-
-func (g *grpcClient) fnPublish(ctx context.Context, p client.Message, opts ...client.PublishOption) error {
-	return g.publish(ctx, []client.Message{p}, opts...)
-}
-
-func (g *grpcClient) publish(ctx context.Context, ps []client.Message, opts ...client.PublishOption) error {
-	var body []byte
-
-	options := client.NewPublishOptions(opts...)
-
-	// get proxy
-	exchange := ""
-	if v, ok := os.LookupEnv("MICRO_PROXY"); ok {
-		exchange = v
-	}
-	// get the exchange
-	if len(options.Exchange) > 0 {
-		exchange = options.Exchange
-	}
-
-	msgs := make([]*broker.Message, 0, len(ps))
-
-	omd, ok := metadata.FromOutgoingContext(ctx)
-	if !ok {
-		omd = metadata.New(2)
-	}
-
-	for _, p := range ps {
-		md := metadata.Copy(omd)
-		topic := p.Topic()
-		if len(exchange) > 0 {
-			topic = exchange
-		}
-		md.Set(metadata.HeaderTopic, topic)
-		iter := p.Metadata().Iterator()
-		var k, v string
-		for iter.Next(&k, &v) {
-			md.Set(k, v)
-		}
-
-		md[metadata.HeaderContentType] = p.ContentType()
-
-		// passed in raw data
-		if d, ok := p.Payload().(*codec.Frame); ok {
-			body = d.Data
-		} else {
-			// use codec for payload
-			cf, err := g.newCodec(p.ContentType())
-			if err != nil {
-				return errors.InternalServerError("go.micro.client", "%+v", err)
-			}
-			// set the body
-			b, err := cf.Marshal(p.Payload())
-			if err != nil {
-				return errors.InternalServerError("go.micro.client", "%+v", err)
-			}
-			body = b
-		}
-		msgs = append(msgs, &broker.Message{Header: md, Body: body})
-	}
-
-	return g.opts.Broker.BatchPublish(ctx, msgs,
-		broker.PublishContext(options.Context),
-		broker.PublishBodyOnly(options.BodyOnly),
-	)
-}
-
 func (g *grpcClient) String() string {
 	return "grpc"
 }
@@ -920,8 +821,6 @@ func NewClient(opts ...client.Option) client.Client {
 
 	c.funcCall = c.fnCall
 	c.funcStream = c.fnStream
-	c.funcPublish = c.fnPublish
-	c.funcBatchPublish = c.fnBatchPublish
 
 	return c
 }

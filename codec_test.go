@@ -2,9 +2,10 @@ package grpc
 
 import (
 	"context"
-	"go.unistack.org/micro/v3/codec"
-	gmetadata "google.golang.org/grpc/metadata"
 	"testing"
+
+	"go.unistack.org/micro/v4/codec"
+	gmetadata "google.golang.org/grpc/metadata"
 )
 
 type mockStream struct {

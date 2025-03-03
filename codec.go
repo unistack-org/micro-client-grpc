@@ -1,7 +1,7 @@
 package grpc
 
 import (
-	"go.unistack.org/micro/v3/codec"
+	"go.unistack.org/micro/v4/codec"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/encoding"
 )
