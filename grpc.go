@@ -77,13 +77,13 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 	var header map[string][]string
 
 	if md, ok := metadata.FromOutgoingContext(ctx); ok {
-		header = metadata.Copy(md)
+		header = metadata.Copy(md).AsHTTP2()
 	} else {
 		header = make(map[string][]string, 2)
 	}
 	if opts.RequestMetadata != nil {
 		for k, v := range opts.RequestMetadata {
-			header[k] = v
+			header[strings.ToLower(k)] = v
 		}
 	}
 	// set timeout in nanoseconds
@@ -188,7 +188,7 @@ func (g *grpcClient) stream(ctx context.Context, addr string, req client.Request
 	var header map[string][]string
 
 	if md, ok := metadata.FromOutgoingContext(ctx); ok {
-		header = metadata.Copy(md)
+		header = metadata.Copy(md).AsHTTP2()
 	} else {
 		header = make(map[string][]string)
 	}
