@@ -74,12 +74,12 @@ func (g *grpcClient) secure(addr string) grpc.DialOption {
 }
 
 func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, rsp interface{}, opts client.CallOptions) error {
-	var header map[string][]string
+	var header gmetadata.MD
 
 	if md, ok := metadata.FromOutgoingContext(ctx); ok {
 		header = metadata.Copy(md).AsHTTP2()
 	} else {
-		header = make(map[string][]string, 2)
+		header = make(gmetadata.MD, 4)
 	}
 	if opts.RequestMetadata != nil {
 		for k, v := range opts.RequestMetadata {
@@ -87,9 +87,11 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 		}
 	}
 	// set timeout in nanoseconds
-	header["grpc-timeout"] = append(header["grpc-timeout"], fmt.Sprintf("%dn", opts.RequestTimeout))
-	header["timeout"] = append(header["timeout"], fmt.Sprintf("%dn", opts.RequestTimeout))
-	header["content-type"] = append(header["content-type"], req.ContentType())
+	if opts.RequestTimeout > time.Duration(0) {
+		header.Set("grpc-timeout", fmt.Sprintf("%dn", opts.RequestTimeout))
+		header.Set("timeout", fmt.Sprintf("%dn", opts.RequestTimeout))
+	}
+	header.Set("content-type", req.ContentType())
 
 	ctx = gmetadata.NewOutgoingContext(ctx, header)
 
@@ -185,21 +187,19 @@ func (g *grpcClient) call(ctx context.Context, addr string, req client.Request, 
 }
 
 func (g *grpcClient) stream(ctx context.Context, addr string, req client.Request, rsp interface{}, opts client.CallOptions) error {
-	var header map[string][]string
+	var header gmetadata.MD
 
 	if md, ok := metadata.FromOutgoingContext(ctx); ok {
 		header = metadata.Copy(md).AsHTTP2()
 	} else {
-		header = make(map[string][]string)
+		header = make(gmetadata.MD, 4)
 	}
 
-	// set timeout in nanoseconds
-	if opts.StreamTimeout > time.Duration(0) {
-		header["grpc-timeout"] = append(header["grpc-timeout"], fmt.Sprintf("%dn", opts.RequestTimeout))
-		header["timeout"] = append(header["timeout"], fmt.Sprintf("%dn", opts.RequestTimeout))
+	if opts.RequestTimeout > time.Duration(0) {
+		header.Set("grpc-timeout", fmt.Sprintf("%dn", opts.RequestTimeout))
+		header.Set("timeout", fmt.Sprintf("%dn", opts.RequestTimeout))
 	}
-	// set the content type for the request
-	header["content-type"] = append(header["content-type"], req.ContentType())
+	header.Set("content-type", req.ContentType())
 
 	ctx = gmetadata.NewOutgoingContext(ctx, header)
 
