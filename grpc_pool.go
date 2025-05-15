@@ -16,7 +16,7 @@ type ConnPool struct {
 	ttl        int64
 	maxStreams int
 	maxIdle    int
-	sync.Mutex
+	mu         sync.Mutex
 }
 
 type streamsPool struct {
@@ -64,7 +64,7 @@ func (p *ConnPool) Get(ctx context.Context, addr string, opts ...grpc.DialOption
 		addr = addr[strings.Index(addr, ":")+3:]
 	}
 	now := time.Now().Unix()
-	p.Lock()
+	p.mu.Lock()
 	sp, ok := p.conns[addr]
 	if !ok {
 		sp = &streamsPool{head: &PoolConn{}, busy: &PoolConn{}, count: 0, idle: 0}
@@ -125,10 +125,10 @@ func (p *ConnPool) Get(ctx context.Context, addr string, opts ...grpc.DialOption
 		}
 		//  a good conn
 		conn.streams++
-		p.Unlock()
+		p.mu.Unlock()
 		return conn, nil
 	}
-	p.Unlock()
+	p.mu.Unlock()
 
 	// nolint (TODO need fix)  create new conn)
 	cc, err := grpc.DialContext(ctx, addr, opts...)
@@ -138,24 +138,24 @@ func (p *ConnPool) Get(ctx context.Context, addr string, opts ...grpc.DialOption
 	conn = &PoolConn{ClientConn: cc, err: nil, addr: addr, pool: p, sp: sp, streams: 1, created: time.Now().Unix(), pre: nil, next: nil, in: false}
 
 	//  add conn to streams pool
-	p.Lock()
+	p.mu.Lock()
 	if sp.count < p.size {
 		addConnAfter(conn, sp.head)
 	}
-	p.Unlock()
+	p.mu.Unlock()
 
 	return conn, nil
 }
 
 func (p *ConnPool) Put(conn *PoolConn, err error) {
-	p.Lock()
+	p.mu.Lock()
 	p, sp, created := conn.pool, conn.sp, conn.created
 	//  try to add conn
 	if !conn.in && sp.count < p.size {
 		addConnAfter(conn, sp.head)
 	}
 	if !conn.in {
-		p.Unlock()
+		p.mu.Unlock()
 		conn.ClientConn.Close()
 		return
 	}
@@ -173,13 +173,13 @@ func (p *ConnPool) Put(conn *PoolConn, err error) {
 		now := time.Now().Unix()
 		if err != nil || sp.idle >= p.maxIdle || now-created > p.ttl {
 			removeConn(conn)
-			p.Unlock()
+			p.mu.Unlock()
 			conn.ClientConn.Close()
 			return
 		}
 		sp.idle++
 	}
-	p.Unlock()
+	p.mu.Unlock()
 }
 
 func (conn *PoolConn) Close() {

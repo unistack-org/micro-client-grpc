@@ -38,8 +38,8 @@ type grpcClient struct {
 	funcStream client.FuncStream
 	pool       *ConnPool
 	opts       client.Options
-	sync.RWMutex
-	init bool
+	mu         sync.RWMutex
+	init       bool
 }
 
 // secure returns the dial option for whether its a secure or insecure connection
@@ -361,8 +361,8 @@ func (g *grpcClient) maxSendMsgSizeValue() int {
 }
 
 func (g *grpcClient) newCodec(ct string) (codec.Codec, error) {
-	g.RLock()
-	defer g.RUnlock()
+	g.mu.RLock()
+	defer g.mu.RUnlock()
 
 	if idx := strings.IndexRune(ct, ';'); idx >= 0 {
 		ct = ct[:idx]

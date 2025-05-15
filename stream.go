@@ -19,8 +19,8 @@ type grpcStream struct {
 	response client.Response
 	close    func(err error)
 	conn     *PoolConn
-	sync.RWMutex
-	closed bool
+	mu       sync.RWMutex
+	closed   bool
 }
 
 func (g *grpcStream) Context() context.Context {
@@ -88,15 +88,15 @@ func (g *grpcStream) RecvMsg(msg interface{}) (err error) {
 }
 
 func (g *grpcStream) Error() error {
-	g.RLock()
-	defer g.RUnlock()
+	g.mu.RLock()
+	defer g.mu.RUnlock()
 	return g.err
 }
 
 func (g *grpcStream) setError(e error) {
-	g.Lock()
+	g.mu.Lock()
 	g.err = e
-	g.Unlock()
+	g.mu.Unlock()
 }
 
 // Close the gRPC send stream
@@ -105,8 +105,8 @@ func (g *grpcStream) setError(e error) {
 // stream should still be able to receive after this function call
 // TODO: should the conn be closed in another way?
 func (g *grpcStream) Close() error {
-	g.Lock()
-	defer g.Unlock()
+	g.mu.Lock()
+	defer g.mu.Unlock()
 
 	if g.closed {
 		return nil
@@ -125,8 +125,8 @@ func (g *grpcStream) Close() error {
 }
 
 func (g *grpcStream) CloseSend() error {
-	g.Lock()
-	defer g.Unlock()
+	g.mu.Lock()
+	defer g.mu.Unlock()
 
 	if g.closed {
 		return nil
