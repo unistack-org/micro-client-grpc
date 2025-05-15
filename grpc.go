@@ -38,8 +38,8 @@ type grpcClient struct {
 	funcStream client.FuncStream
 	pool       *ConnPool
 	opts       client.Options
-	sync.RWMutex
-	init bool
+	mu         sync.RWMutex
+	init       bool
 }
 
 // secure returns the dial option for whether its a secure or insecure connection
@@ -361,8 +361,8 @@ func (g *grpcClient) maxSendMsgSizeValue() int {
 }
 
 func (g *grpcClient) newCodec(ct string) (codec.Codec, error) {
-	g.RLock()
-	defer g.RUnlock()
+	g.mu.RLock()
+	defer g.mu.RUnlock()
 
 	if idx := strings.IndexRune(ct, ';'); idx >= 0 {
 		ct = ct[:idx]
@@ -398,10 +398,10 @@ func (g *grpcClient) Init(opts ...client.Option) error {
 
 	// update pool configuration if the options changed
 	if size != g.opts.PoolSize || ttl != g.opts.PoolTTL {
-		g.pool.Lock()
+		g.pool.mu.Lock()
 		g.pool.size = g.opts.PoolSize
 		g.pool.ttl = int64(g.opts.PoolTTL.Seconds())
-		g.pool.Unlock()
+		g.pool.mu.Unlock()
 	}
 
 	g.funcCall = g.fnCall
