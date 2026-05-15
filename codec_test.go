@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"go.unistack.org/micro/v4/codec"
+	"go.unistack.org/micro/v5/codec"
 	gmetadata "google.golang.org/grpc/metadata"
 )
 

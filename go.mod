@@ -1,9 +1,9 @@
-module go.unistack.org/micro-client-grpc/v4
+module go.unistack.org/micro-client-grpc/v5
 
 go 1.24.0
 
 require (
-	go.unistack.org/micro/v4 v4.1.7
+	go.unistack.org/micro/v5 v4.1.7
 	google.golang.org/grpc v1.79.3
 )
 
@@ -12,7 +12,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/matoous/go-nanoid v1.5.1 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
-	go.unistack.org/micro-proto/v4 v4.1.0 // indirect
+	go.unistack.org/micro-proto/v5 v4.1.0 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
